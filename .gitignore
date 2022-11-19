@@ -29,3 +29,8 @@ override.tf.json
 # example: *tfplan*
 terraform/.terraform.lock.hcl
 sam/AWSCLIV2.pkg
+
+libs/
+.aws-sam/
+sam/app/samconfig.toml
+backend.tf
