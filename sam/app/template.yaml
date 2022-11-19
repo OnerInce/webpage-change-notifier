@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  python3.9
+
+  SAM Template for webpage-change-notifier
+
+Parameters:
+  DynamoDBTableName:
+    Type: String
+    Default: WebPage
+  TargetPage:
+    Type: String
+    Default: https://github.com/OnerInce/
+  SNSTopicName:
+    Type: String
+    Default: webpages-updates-topic
+
+Globals:
+  Function:
+    Timeout: 5
+
+Resources:
+  ScraperFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: scraper/src/
+      Handler: app.lambda_handler
+      FunctionName: webpage-scrape-to-dynamo
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref DynamoDBTableName
+      Runtime: python3.9
+      Events:
+        InvocationLevel:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref DynamoDBTableName
+          PAGE_URL: !Ref TargetPage
+      Architectures:
+        - x86_64
+      Layers:
+        - !Ref libs
+  NotifierFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: notifier/src/
+      Handler: app.lambda_handler
+      FunctionName: webpage-scrape-dynamo-stream
+      Policies:
+        - AmazonDynamoDBFullAccess
+        - SNSPublishMessagePolicy:
+            TopicName: !Ref SNSTopicName
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+
+  libs:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: python-deps-layer
+      Description: Lambda layer with Python Deps
+      ContentUri: ./scraper/libs
+
+Outputs:
+  ScraperFunction:
+    Description: "Scraper Lambda Function"
+    Value: !GetAtt ScraperFunction.Arn
+  NotifierFunction:
+    Description: "Notifier Lambda Function"
+    Value: !GetAtt NotifierFunction.Arn
+  
